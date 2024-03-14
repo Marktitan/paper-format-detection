@@ -1,13 +1,19 @@
 package com.loong.ai.test;
 
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
-import org.docx4j.wml.Text;
+import org.docx4j.wml.P;
 import java.util.List;
+import java.util.Map;
 
 public class CheckDocument {
 
     public static void main(String[] args) {
-        String filePath = "classpath:数据科学与大数据技术.docx"; // 确保路径是正确的
+        if (args.length < 1) {
+            System.out.println("Usage: CheckDocument <path_to_docx>");
+            return;
+        }
+        String filePath = args[0]; // 从命令行参数获取文档路径
+
         try {
             // 使用DocumentLoader加载文档
             WordprocessingMLPackage wordMLPackage = DocumentLoader.loadDocument(filePath);
@@ -16,53 +22,32 @@ public class CheckDocument {
                 return;
             }
 
-            // 获取文档的所有文本元素
-            List<Object> texts = getAllElementFromObject(wordMLPackage.getMainDocumentPart(), Text.class);
+            // 定义文档中部分的标记
+            List<String> sectionMarkers = List.of("封面如下", "摘要如下", "正文如下", "引用如下", "致谢如下");
 
-            int chineseCount = 0;
-            int englishCount = 0;
-            StringBuilder abstractText = new StringBuilder();
-            boolean foundAbstract = false;
+            // 使用SectionLocator定位文档的不同部分
+            Map<String, List<P>> sections = SectionLocator.findSections(wordMLPackage, sectionMarkers);
 
-            for (Object obj : texts) {
-                Text textElement = (Text) obj;
-                String text = textElement.getValue();
-                for (char c : text.toCharArray()) {
-                    if (isChinese(c)) {
-                        chineseCount++;
-                    } else if (isEnglish(c)) {
-                        englishCount++;
-                    }
-                }
+            // 使用ContentClassifier分类文档内容
+            ContentClassifier.classifyContent(wordMLPackage);
 
-                // 提取摘要
-                if (text.startsWith("摘要")) {
-                    foundAbstract = true;
-                } else if (foundAbstract) {
-                    abstractText.append(text).append("\n");
-                }
-            }
+            // 假设FormatChecker和CommentAdder的逻辑已经实现
+            // 在这里调用它们对文档进行格式检查和添加批注
+            // 例如，对每个部分执行特定的格式检查
+            sections.forEach((sectionName, paragraphs) -> {
+                System.out.println("Processing section: " + sectionName);
+                // 对于每个段落，进行格式检查和添加批注
+                // 这里需要根据FormatChecker和CommentAdder的实际实现来调用它们的方法
+                // 示例：FormatChecker.checkParagraphFormat(paragraph);
+                // 示例：CommentAdder.addCommentToParagraph(wordMLPackage, paragraph, "批注内容");
+            });
 
-            System.out.println("中文字符数：" + chineseCount);
-            System.out.println("英文字符数：" + englishCount);
-            System.out.println("摘要内容：\n" + abstractText.toString().trim());
+            // 保存更改后的文档
+            wordMLPackage.save(new java.io.File(filePath.replace(".docx", "_modified.docx")));
+
+            System.out.println("Document processing completed.");
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static boolean isChinese(char c) {
-        // 判断字符是否为中文字符（Unicode 编码范围）
-        return (c >= 0x4E00 && c <= 0x9FA5);
-    }
-
-    public static boolean isEnglish(char c) {
-        // 判断字符是否为英文字符（ASCII 编码范围）
-        return (c >= 0x0020 && c <= 0x007E);
-    }
-
-    // 通用方法，用于从给定对象中获取所有指定类型的元素
-    private static List<Object> getAllElementFromObject(Object obj, Class<?> toSearch) {
-        // 此处应包含之前实现的getAllElementFromObject方法的代码
     }
 }

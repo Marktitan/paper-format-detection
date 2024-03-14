@@ -1,53 +1,81 @@
 package com.loong.ai.test;
-
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
+import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;
 import org.docx4j.wml.P;
+import org.docx4j.wml.Text;
+
+import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
-public class CheckDocument {
+public class SectionLocator {
 
-    public static void main(String[] args) {
-        if (args.length < 1) {
-            System.out.println("Usage: CheckDocument <path_to_docx>");
-            return;
-        }
-        String filePath = args[0]; // 从命令行参数获取文档路径
+    // 定位并返回文档中的各个部分
+    public static Map<String, List<P>> findSections(WordprocessingMLPackage wordMLPackage, List<String> sectionMarkers) {
+        Map<String, List<P>> sections = new HashMap<>();
+        MainDocumentPart mainDocumentPart = wordMLPackage.getMainDocumentPart();
 
-        try {
-            // 使用DocumentLoader加载文档
-            WordprocessingMLPackage wordMLPackage = DocumentLoader.loadDocument(filePath);
-            if (wordMLPackage == null) {
-                System.out.println("Failed to load the document.");
-                return;
+        // 获取文档中的所有段落
+        List<Object> paragraphs = getAllElementFromObject(mainDocumentPart, P.class);
+
+        // 当前正在处理的部分的名称
+        String currentSectionName = null;
+        // 当前部分的内容
+        List<P> currentSectionContent = new ArrayList<>();
+
+        // 遍历所有段落，寻找含有特定标记的段落
+        for (Object obj : paragraphs) {
+            P paragraph = (P) obj;
+            String paragraphText = getParagraphText(paragraph).trim();
+
+            // 检查段落是否包含某个标记
+            if (sectionMarkers.contains(paragraphText)) {
+                // 如果当前部分名称不为空，保存并重置当前部分
+                if (currentSectionName != null) {
+                    sections.put(currentSectionName, new ArrayList<>(currentSectionContent));
+                    currentSectionContent.clear();
+                }
+                // 更新当前部分的名称
+                currentSectionName = paragraphText;
+            } else if (currentSectionName != null) {
+                // 如果当前正在处理某个部分，添加当前段落到这个部分
+                currentSectionContent.add(paragraph);
             }
-
-            // 定义文档中部分的标记
-            List<String> sectionMarkers = List.of("封面如下", "摘要如下", "正文如下", "引用如下", "致谢如下");
-
-            // 使用SectionLocator定位文档的不同部分
-            Map<String, List<P>> sections = SectionLocator.findSections(wordMLPackage, sectionMarkers);
-
-            // 使用ContentClassifier分类文档内容
-            ContentClassifier.classifyContent(wordMLPackage);
-
-            // 假设FormatChecker和CommentAdder的逻辑已经实现
-            // 在这里调用它们对文档进行格式检查和添加批注
-            // 例如，对每个部分执行特定的格式检查
-            sections.forEach((sectionName, paragraphs) -> {
-                System.out.println("Processing section: " + sectionName);
-                // 对于每个段落，进行格式检查和添加批注
-                // 这里需要根据FormatChecker和CommentAdder的实际实现来调用它们的方法
-                // 示例：FormatChecker.checkParagraphFormat(paragraph);
-                // 示例：CommentAdder.addCommentToParagraph(wordMLPackage, paragraph, "批注内容");
-            });
-
-            // 保存更改后的文档
-            wordMLPackage.save(new java.io.File(filePath.replace(".docx", "_modified.docx")));
-
-            System.out.println("Document processing completed.");
-        } catch (Exception e) {
-            e.printStackTrace();
         }
+
+        // 添加最后一个部分
+        if (currentSectionName != null && !currentSectionContent.isEmpty()) {
+            sections.put(currentSectionName, currentSectionContent);
+        }
+
+        return sections;
+    }
+
+    // 从对象（如段落）中提取文本内容
+    private static String getParagraphText(P paragraph) {
+        StringBuilder sb = new StringBuilder();
+        List<Object> texts = getAllElementFromObject(paragraph, Text.class);
+        for (Object text : texts) {
+            Text t = (Text) text;
+            sb.append(t.getValue());
+        }
+        return sb.toString();
+    }
+
+    // 通用方法，用于从给定对象中获取所有指定类型的元素
+    private static List<Object> getAllElementFromObject(Object obj, Class<?> toSearch) {
+        List<Object> result = new ArrayList<>();
+        if (obj instanceof JAXBElement) obj = ((JAXBElement<?>) obj).getValue();
+
+        if (obj.getClass().equals(toSearch))
+            result.add(obj);
+        else if (obj instanceof ContentAccessor) {
+            List<?> children = ((ContentAccessor) obj).getContent();
+            for (Object child : children) {
+                result.addAll(getAllElementFromObject(child, toSearch));
+            }
+        }
+        return result;
     }
 }
