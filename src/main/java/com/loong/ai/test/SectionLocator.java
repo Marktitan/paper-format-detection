@@ -1,3 +1,6 @@
+//定位器，用来确定属于文章的哪一部分
+
+
 package com.loong.ai.test;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.openpackaging.parts.WordprocessingML.MainDocumentPart;

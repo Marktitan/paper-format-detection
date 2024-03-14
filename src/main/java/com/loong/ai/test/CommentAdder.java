@@ -1,3 +1,6 @@
+//批注器，用来对错误部分进行批注
+
+
 package com.loong.ai.test;
 
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;

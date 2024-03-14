@@ -1,3 +1,6 @@
+//检查器，用来检查格式
+
+
 package com.loong.ai.test;
 import org.docx4j.openpackaging.packages.WordprocessingMLPackage;
 import org.docx4j.wml.*;
